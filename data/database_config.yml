@@ -1,0 +1,15 @@
+allocated_storage: 5
+auto_minor_version_upgrade: false
+backup_retention_period: 0
+db_instance_class: "db.t1.micro"
+db_instance_identifier: "nucleotides-staging-db"
+db_name: "nucleotides"
+engine: "postgres"
+engine_version: "9.4.5"
+master_user_password: "nucleotides"
+master_username: "nucleotides"
+multi_az: false
+port: 5433
+publicly_accessible: true
+storage_encrypted: false
+storage_type: "standard"
