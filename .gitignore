@@ -2,3 +2,5 @@ Gemfile.lock
 .bundle
 vendor
 .db
+*tfstate*
+variables.tf
