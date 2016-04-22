@@ -5,7 +5,7 @@
 #######################################
 
 destroy:
-	bundle exec ./plumbing/db/destroy
+	terraform destroy --force
 
 #######################################
 #
@@ -13,19 +13,8 @@ destroy:
 #
 #######################################
 
-deploy: .db
+deploy: variables.tf
+	terraform apply
 
-.db: Gemfile.lock
-	bundle exec ./plumbing/db/create
-	touch $@
-
-#######################################
-#
-# Deploy
-#
-#######################################
-
-bootstrap: Gemfile.lock
-
-Gemfile.lock: Gemfile
-	bundle install --path vendor/bundle
+variables.tf: ~/.aws/variables.tf
+	cp $< $@
