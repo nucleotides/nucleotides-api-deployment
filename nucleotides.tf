@@ -16,3 +16,21 @@ resource "aws_instance" "evaluation" {
 	key_name = "${var.key_name}"
 	security_groups = ["nucleotides-evaluation"]
 }
+
+resource "aws_db_instance" "default" {
+	identifier              = "nucleotides-staging-db"
+	allocated_storage       = 5
+	engine                  = "postgres"
+	engine_version          = "9.4.5"
+	instance_class          = "db.t1.micro"
+	multi_az                = false
+	backup_retention_period = 0
+	publicly_accessible     = true
+	storage_encrypted       = false
+	storage_type            = "standard"
+
+	name     = "nucleotides"
+	password = "nucleotides"
+	username = "nucleotides"
+	port     = 5433
+}
