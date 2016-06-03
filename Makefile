@@ -1,10 +1,10 @@
-#######################################
-#
-# Bootstrap required resources
-#
-#######################################
+bootstrap: vendor/python tmp/data
 
-bootstrap: tmp/data
+vendor/python:
+	@mkdir -p log
+	@virtualenv $@ 2>&1 > log/virtualenv.txt
+	@$(path) pip install awscli==1.10.35
+	@touch $@
 
 tmp/application_source.zip: tmp/data tmp/Dockerrun.aws.json
 	cd ./$(dir $@) && zip \
