@@ -1,3 +1,17 @@
+path   := PATH=$(abspath ./vendor/python/bin):$(shell echo "${PATH}")
+digest := $(shell cd ./tmp/data && git rev-parse HEAD | cut -c1-8)
+env    := nucleotides-api-$(digest).zip
+url    : s3://nucleotides-tools/eb-environments/$(env)
+
+upload: tmp/$(env)
+	$(path) aws s3 cp $< $(url)
+
+#######################################
+#
+# Bootstrap required resources
+#
+#######################################
+
 bootstrap: vendor/python tmp/data
 
 vendor/python:
@@ -6,7 +20,7 @@ vendor/python:
 	@$(path) pip install awscli==1.10.35
 	@touch $@
 
-tmp/application_source.zip: tmp/data tmp/Dockerrun.aws.json
+tmp/$(env): tmp/data tmp/Dockerrun.aws.json
 	cd ./$(dir $@) && zip \
 		--recurse-paths \
 		--include=data/inputs/* \
@@ -21,3 +35,5 @@ tmp/data:
 	mkdir -p $(dir $@)
 	git clone git@github.com:nucleotides/nucleotides-data.git $@
 	touch $@
+
+.PHONY: reset
