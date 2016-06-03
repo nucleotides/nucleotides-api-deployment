@@ -1,34 +1,10 @@
 #######################################
 #
-# Teardown test stack
+# Bootstrap required resources
 #
 #######################################
 
-destroy:
-	bundle exec ./plumbing/db/destroy
-
-#######################################
-#
-# Setup up test stack
-#
-#######################################
-
-deploy: .db
-
-.db: Gemfile.lock
-	bundle exec ./plumbing/db/create
-	touch $@
-
-#######################################
-#
-# Deploy
-#
-#######################################
-
-bootstrap: Gemfile.lock
-
-Gemfile.lock: Gemfile
-	bundle install --path vendor/bundle
+bootstrap: tmp/data
 
 tmp/application_source.zip: tmp/data tmp/Dockerrun.aws.json
 	cd ./$(dir $@) && zip \
