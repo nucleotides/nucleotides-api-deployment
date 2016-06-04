@@ -1,10 +1,28 @@
-path   := PATH=$(abspath ./vendor/python/bin):$(shell echo "${PATH}")
+path   := PATH=$(abspath ./vendor/python/bin)
 digest := $(shell cd ./tmp/data && git rev-parse HEAD | cut -c1-8)
 env    := nucleotides-api-$(digest).zip
-url    : s3://nucleotides-tools/eb-environments/$(env)
+url    := s3://nucleotides-tools/eb-environments/$(env)
+
+
+deploy-app:
+	$(path) aws elasticbeanstalk update-environment \
+		--environment-id ${NUCLEOTIDES_STAGING_ID} \
+		--version-label $(env)
+
+deploy-version:
+	$(path) aws elasticbeanstalk create-application-version \
+		--application-name nucleotides \
+		--source-bundle 'S3Bucket=${NUCLEOTIDES_BEAN_BUCKET},S3Key=eb-environments/$(env)' \
+		--version-label $(env)
+
+db-reset:
+	$(path) aws elasticbeanstalk update-environment \
+		--environment-id ${NUCLEOTIDES_STAGING_ID} \
+		--version-label database-reset
 
 upload: tmp/$(env)
 	$(path) aws s3 cp $< $(url)
+
 
 #######################################
 #
