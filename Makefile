@@ -1,36 +1,44 @@
+path   := PATH=$(abspath ./vendor/python/bin)
+digest := $(shell cd ./tmp/data && git rev-parse HEAD | cut -c1-8)
+env    := nucleotides-api-$(digest).zip
+url    := s3://nucleotides-tools/eb-environments/$(env)
+
+
+deploy-app:
+	$(path) aws elasticbeanstalk update-environment \
+		--environment-id ${NUCLEOTIDES_STAGING_ID} \
+		--version-label $(env)
+
+deploy-version:
+	$(path) aws elasticbeanstalk create-application-version \
+		--application-name nucleotides \
+		--source-bundle 'S3Bucket=${NUCLEOTIDES_BEAN_BUCKET},S3Key=eb-environments/$(env)' \
+		--version-label $(env)
+
+db-reset:
+	$(path) aws elasticbeanstalk update-environment \
+		--environment-id ${NUCLEOTIDES_STAGING_ID} \
+		--version-label database-reset
+
+upload: tmp/$(env)
+	$(path) aws s3 cp $< $(url)
+
+
 #######################################
 #
-# Teardown test stack
+# Bootstrap required resources
 #
 #######################################
 
-destroy:
-	bundle exec ./plumbing/db/destroy
+bootstrap: vendor/python tmp/data
 
-#######################################
-#
-# Setup up test stack
-#
-#######################################
+vendor/python:
+	@mkdir -p log
+	@virtualenv $@ 2>&1 > log/virtualenv.txt
+	@$(path) pip install awscli==1.10.35
+	@touch $@
 
-deploy: .db
-
-.db: Gemfile.lock
-	bundle exec ./plumbing/db/create
-	touch $@
-
-#######################################
-#
-# Deploy
-#
-#######################################
-
-bootstrap: Gemfile.lock
-
-Gemfile.lock: Gemfile
-	bundle install --path vendor/bundle
-
-tmp/application_source.zip: tmp/data tmp/Dockerrun.aws.json
+tmp/$(env): tmp/data tmp/Dockerrun.aws.json
 	cd ./$(dir $@) && zip \
 		--recurse-paths \
 		--include=data/inputs/* \
@@ -45,3 +53,5 @@ tmp/data:
 	mkdir -p $(dir $@)
 	git clone git@github.com:nucleotides/nucleotides-data.git $@
 	touch $@
+
+.PHONY: reset
