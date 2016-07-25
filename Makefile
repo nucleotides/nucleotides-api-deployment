@@ -10,7 +10,8 @@ s3-url    := s3://$(s3-bucket)/$(s3-key)
 deploy-app: .deploy
 	$(path) aws elasticbeanstalk update-environment \
 		--environment-id ${NUCLEOTIDES_STAGING_ID} \
-		--version-label $(env)
+		--version-label $(env) \
+		| tee > $@
 
 
 db-reset:
@@ -29,7 +30,8 @@ db-reset:
 	$(path) aws elasticbeanstalk create-application-version \
 		--application-name nucleotides \
 		--source-bundle 'S3Bucket=$(s3-bucket),S3Key=$(s3-key)' \
-		--version-label $(env)
+		--version-label $(env) \
+		> $@
 
 .upload: tmp/$(env)
 	$(path) aws s3 cp $< $(s3-url)
