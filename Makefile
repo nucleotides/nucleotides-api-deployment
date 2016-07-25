@@ -1,27 +1,38 @@
 path   := PATH=$(abspath ./vendor/python/bin)
 digest := $(shell cd ./tmp/data && git rev-parse HEAD | cut -c1-8)
 env    := nucleotides-api-$(digest).zip
-url    := s3://nucleotides-tools/eb-environments/$(env)
+
+s3-bucket := nucleotides-tools
+s3-key    := eb-environments/$(env)
+s3-url    := s3://$(s3-bucket)/$(s3-key)
 
 
-deploy-app: .upload
+deploy-app: .deploy
 	$(path) aws elasticbeanstalk update-environment \
 		--environment-id ${NUCLEOTIDES_STAGING_ID} \
 		--version-label $(env)
 
-deploy-version: .upload
-	$(path) aws elasticbeanstalk create-application-version \
-		--application-name nucleotides \
-		--source-bundle 'S3Bucket=${NUCLEOTIDES_BEAN_BUCKET},S3Key=eb-environments/$(env)' \
-		--version-label $(env)
 
 db-reset:
 	$(path) aws elasticbeanstalk update-environment \
 		--environment-id ${NUCLEOTIDES_STAGING_ID} \
 		--version-label database-reset
 
+#######################################
+#
+# Upload elasticbeanstalk data and
+# create applicaton version
+#
+#######################################
+
+.deploy: .upload
+	$(path) aws elasticbeanstalk create-application-version \
+		--application-name nucleotides \
+		--source-bundle 'S3Bucket=$(s3-bucket),S3Key=$(s3-key)' \
+		--version-label $(env)
+
 .upload: tmp/$(env)
-	$(path) aws s3 cp $< $(url)
+	$(path) aws s3 cp $< $(s3-url)
 	touch $@
 
 #######################################
