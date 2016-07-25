@@ -4,12 +4,12 @@ env    := nucleotides-api-$(digest).zip
 url    := s3://nucleotides-tools/eb-environments/$(env)
 
 
-deploy-app:
+deploy-app: .upload
 	$(path) aws elasticbeanstalk update-environment \
 		--environment-id ${NUCLEOTIDES_STAGING_ID} \
 		--version-label $(env)
 
-deploy-version:
+deploy-version: .upload
 	$(path) aws elasticbeanstalk create-application-version \
 		--application-name nucleotides \
 		--source-bundle 'S3Bucket=${NUCLEOTIDES_BEAN_BUCKET},S3Key=eb-environments/$(env)' \
@@ -20,9 +20,26 @@ db-reset:
 		--environment-id ${NUCLEOTIDES_STAGING_ID} \
 		--version-label database-reset
 
-upload: tmp/$(env)
+.upload: tmp/$(env)
 	$(path) aws s3 cp $< $(url)
+	touch $@
 
+#######################################
+#
+# Build elastic beanstalk config
+#
+#######################################
+
+tmp/$(env): tmp/data tmp/Dockerrun.aws.json
+	cd ./$(dir $@) && zip \
+		--recurse-paths \
+		--include=data/inputs/* \
+		--include=data/controlled_vocabulary/* \
+		--include=Dockerrun.aws.json \
+		../$@ .
+
+tmp/Dockerrun.aws.json: data/Dockerrun.aws.json
+	cp $< $@
 
 #######################################
 #
@@ -38,16 +55,6 @@ vendor/python:
 	@$(path) pip install awscli==1.10.35
 	@touch $@
 
-tmp/$(env): tmp/data tmp/Dockerrun.aws.json
-	cd ./$(dir $@) && zip \
-		--recurse-paths \
-		--include=data/inputs/* \
-		--include=data/controlled_vocabulary/* \
-		--include=Dockerrun.aws.json \
-		../$@ .
-
-tmp/Dockerrun.aws.json: data/Dockerrun.aws.json
-	cp $< $@
 
 tmp/data:
 	mkdir -p $(dir $@)

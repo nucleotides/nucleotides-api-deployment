@@ -4,3 +4,4 @@ vendor
 .db
 tmp
 log
+.upload
