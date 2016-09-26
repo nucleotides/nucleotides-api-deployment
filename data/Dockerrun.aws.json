@@ -1,0 +1,19 @@
+{
+  "AWSEBDockerrunVersion": "1",
+  "Image": {
+    "Name": "nucleotides/api:staging",
+    "Update": "true"
+  },
+  "Ports": [
+    {
+      "ContainerPort": "80"
+    }
+  ],
+  "Volumes": [
+    {
+      "HostDirectory": "/var/app/current/data",
+      "ContainerDirectory": "/data"
+    }
+  ],
+  "Logging": "/var/log/nucleotides"
+}
