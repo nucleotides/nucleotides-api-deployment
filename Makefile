@@ -1,16 +1,18 @@
-path   := PATH=$(abspath ./vendor/python/bin)
-digest := $(shell cd ./tmp/data && git rev-parse HEAD | cut -c1-8)
-env    := nucleotides-api-$(digest).zip
+#!/usr/bin/make -f
+
+path           := PATH=$(abspath ./vendor/python/bin)
+digest         := $(shell cd ./tmp/data && git rev-parse HEAD | cut -c1-8)
+beanstalk-env  := nucleotides-api-$(deployment)-$(digest).zip
 
 s3-bucket := nucleotides-tools
-s3-key    := eb-environments/$(env)
+s3-key    := eb-environments/$(beanstalk-env)
 s3-url    := s3://$(s3-bucket)/$(s3-key)
 
 
 deploy-app: .deploy
 	$(path) aws elasticbeanstalk update-environment \
 		--environment-id ${NUCLEOTIDES_STAGING_ID} \
-		--version-label $(env) \
+		--version-label $(beanstalk-env) \
 		| tee > $@
 
 
@@ -30,10 +32,10 @@ db-reset:
 	$(path) aws elasticbeanstalk create-application-version \
 		--application-name nucleotides \
 		--source-bundle 'S3Bucket=$(s3-bucket),S3Key=$(s3-key)' \
-		--version-label $(env) \
+		--version-label $(beanstalk-env) \
 		> $@
 
-.upload: tmp/$(env)
+.upload: tmp/$(beanstalk-env)
 	$(path) aws s3 cp $< $(s3-url)
 	touch $@
 
@@ -43,7 +45,7 @@ db-reset:
 #
 #######################################
 
-tmp/$(env): tmp/data tmp/Dockerrun.aws.json
+tmp/$(beanstalk-env): tmp/data tmp/Dockerrun.aws.json
 	cd ./$(dir $@) && zip \
 		--recurse-paths \
 		--include=data/inputs/* \
@@ -73,5 +75,8 @@ tmp/data:
 	mkdir -p $(dir $@)
 	git clone git@github.com:nucleotides/nucleotides-data.git $@
 	touch $@
+
+clean:
+	rm -rf tmp/*
 
 .PHONY: reset
