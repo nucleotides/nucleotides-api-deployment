@@ -16,7 +16,7 @@ ifndef DOCKER_HOST
     $(error DOCKER_HOST not found. Docker appears not to be running)
 endif
 
-deploy-app: .deploy
+tmp/%/.deploy-app: tmp/%/.deploy-bundle
 	$(path) aws elasticbeanstalk update-environment \
 		--environment-id ${NUCLEOTIDES_STAGING_ID} \
 		--version-label $(beanstalk-env) \
@@ -35,7 +35,7 @@ db-reset:
 #
 #######################################
 
-tmp/%/.deploy: tmp/%/.upload
+tmp/%/.deploy-bundle: tmp/%/.upload
 	@$(path) aws elasticbeanstalk create-application-version \
 		--application-name nucleotides \
 		--source-bundle 'S3Bucket=$(s3-bucket),S3Key=$(s3-key)' \
@@ -58,7 +58,7 @@ tmp/%/beanstalk-deploy.zip: tmp/data tmp/%/Dockerrun.aws.json
 		--include=../data/inputs/* \
 		--include=../data/controlled_vocabulary/* \
 		--include=Dockerrun.aws.json \
-		../../$@ .
+		../../$@ ..
 
 tmp/%/Dockerrun.aws.json: data/Dockerrun.aws.json tmp/%/image_digest.txt
 	jq \
