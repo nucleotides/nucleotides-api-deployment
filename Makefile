@@ -1,12 +1,12 @@
 #!/usr/bin/make -f
 
-path           := PATH=$(abspath ./vendor/python/bin)
-digest         := $(shell cd ./tmp/data && git rev-parse HEAD | cut -c1-8)
-beanstalk-env  := nucleotides-api-$(DEPLOYMENT)-$(digest).zip
+path           = PATH=$(abspath ./vendor/python/bin)
+digest         = $(shell cd ./tmp/data && git rev-parse HEAD | cut -c1-8)
+beanstalk-env  = nucleotides-api-$(DEPLOYMENT)-$(digest).zip
 
-s3-bucket := nucleotides-tools
-s3-key    := eb-environments/$(beanstalk-env)
-s3-url    := s3://$(s3-bucket)/$(s3-key)
+s3-bucket = nucleotides-tools
+s3-key    = eb-environments/$(beanstalk-env)
+s3-url    = s3://$(s3-bucket)/$(s3-key)
 
 ifndef DEPLOYMENT
     $(error DEPLOYMENT variable is undefined)
@@ -35,16 +35,16 @@ db-reset:
 #
 #######################################
 
-.deploy: .upload
-	$(path) aws elasticbeanstalk create-application-version \
+tmp/%/.deploy: tmp/%/.upload
+	@$(path) aws elasticbeanstalk create-application-version \
 		--application-name nucleotides \
 		--source-bundle 'S3Bucket=$(s3-bucket),S3Key=$(s3-key)' \
 		--version-label $(beanstalk-env) \
 		> $@
 
-.upload: tmp/$(beanstalk-env)
-	$(path) aws s3 cp $< $(s3-url)
-	touch $@
+tmp/%/.upload: tmp/%/beanstalk-deploy.zip
+	@$(path) aws s3 cp $< $(s3-url)
+	@touch $@
 
 #######################################
 #
