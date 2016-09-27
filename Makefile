@@ -2,12 +2,19 @@
 
 path           := PATH=$(abspath ./vendor/python/bin)
 digest         := $(shell cd ./tmp/data && git rev-parse HEAD | cut -c1-8)
-beanstalk-env  := nucleotides-api-$(deployment)-$(digest).zip
+beanstalk-env  := nucleotides-api-$(DEPLOYMENT)-$(digest).zip
 
 s3-bucket := nucleotides-tools
 s3-key    := eb-environments/$(beanstalk-env)
 s3-url    := s3://$(s3-bucket)/$(s3-key)
 
+ifndef DEPLOYMENT
+    $(error DEPLOYMENT variable is undefined)
+endif
+
+ifndef DOCKER_HOST
+    $(error DOCKER_HOST not found. Docker appears not to be running)
+endif
 
 deploy-app: .deploy
 	$(path) aws elasticbeanstalk update-environment \
@@ -45,16 +52,35 @@ db-reset:
 #
 #######################################
 
-tmp/$(beanstalk-env): tmp/data tmp/Dockerrun.aws.json
+tmp/%/beanstalk-deploy.zip: tmp/data tmp/%/Dockerrun.aws.json
 	cd ./$(dir $@) && zip \
 		--recurse-paths \
-		--include=data/inputs/* \
-		--include=data/controlled_vocabulary/* \
+		--include=../data/inputs/* \
+		--include=../data/controlled_vocabulary/* \
 		--include=Dockerrun.aws.json \
-		../$@ .
+		../../$@ .
 
-tmp/Dockerrun.aws.json: data/Dockerrun.aws.json
-	cp $< $@
+tmp/%/Dockerrun.aws.json: data/Dockerrun.aws.json tmp/%/image_digest.txt
+	jq \
+		--arg image $(shell cat $(lastword $^)) \
+		--null-input \
+		--from-file $< \
+		> $@
+
+
+tmp/production/image_digest.txt:
+	mkdir -p $(dir $@)
+	docker pull nucleotides/api:staging
+	docker tag nucleotides/api:staging nucleotides/api:master
+	docker push nucleotides/api:master \
+		| egrep --only-matching '[a-f0-9]{64}' \
+		> $@
+
+tmp/staging/image_digest.txt:
+	mkdir -p $(dir $@)
+	docker pull nucleotides/api:staging \
+		| egrep --only-matching '[a-f0-9]{64}' \
+		> $@
 
 #######################################
 #
@@ -79,4 +105,4 @@ tmp/data:
 clean:
 	rm -rf tmp/*
 
-.PHONY: reset
+.PHONY: reset check-env
