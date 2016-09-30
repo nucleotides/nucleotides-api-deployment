@@ -1,6 +1,6 @@
 #!/usr/bin/make -f
 
-path           = PATH=$(abspath ./vendor/python/bin)
+path           = PATH=$(abspath ./vendor/python/bin):/usr/local/bin
 data-digest    = $(shell cd ./tmp/data && git rev-parse HEAD | cut -c1-8)
 image-digest   = $(shell cat tmp/$(DEPLOYMENT)/image_digest.txt | cut -c1-8)
 beanstalk-env  = nucleotides-api-$(DEPLOYMENT)-data-$(data-digest)-image-$(image-digest).zip
@@ -42,12 +42,9 @@ db-reset: tmp/environments.json
 #
 #######################################
 
-tmp/%/.deploy-bundle: tmp/%/.upload
-	@$(path) aws elasticbeanstalk create-application-version \
-		--application-name nucleotides \
-		--source-bundle 'S3Bucket=$(s3-bucket),S3Key=$(s3-key)' \
-		--version-label $(beanstalk-env) \
-		> $@
+tmp/%/.deploy-bundle: ./bin/update-application-version.sh tmp/%/.upload
+	@$(path) $< $(s3-bucket) $(beanstalk-env) > $@
+	touch $@
 
 tmp/%/.upload: tmp/%/beanstalk-deploy.zip
 	@$(path) aws s3 cp $< $(s3-url)
