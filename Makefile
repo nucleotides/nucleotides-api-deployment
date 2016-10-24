@@ -1,6 +1,8 @@
 #!/usr/bin/make -f
 
-path           = PATH=$(abspath ./vendor/python/bin):/usr/local/bin
+key  = jgi-macbook-pro
+
+path           = PATH=$(abspath ./vendor/python/bin):/usr/local/bin:/usr/bin:/bin
 data-digest    = $(shell cd ./tmp/data && git rev-parse HEAD | cut -c1-8)
 image-digest   = $(shell cat tmp/$(DEPLOYMENT)/image_digest.txt | cut -c1-8)
 beanstalk-env  = nucleotides-api-$(DEPLOYMENT)-data-$(data-digest)-image-$(image-digest).zip
@@ -96,6 +98,11 @@ tmp/%/data: tmp/data
 #######################################
 
 bootstrap: vendor/python tmp/data tmp/environments.json
+
+
+tmp/%/database.sql: bin/fetch-database-contents.sh tmp/environments.json
+	mkdir -p $(dir $@)
+	$(path) ./$^ $(key) $* > $@
 
 tmp/environments.json: vendor/python
 	@$(path) aws s3 cp s3://nucleotides-tools/credentials/environments.json $@
