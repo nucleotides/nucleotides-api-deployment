@@ -1,3 +1,4 @@
 #!/bin/bash
 
-make bootstrap
+# No deployment environment is required to fetch input data
+make bootstrap DEPLOYMENT="dummy"
