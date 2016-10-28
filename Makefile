@@ -22,13 +22,29 @@ endif
 .PHONY: clean
 .SECONDARY:
 
-#$(DEPLOYMENT): tmp/$(DEPLOYMENT)/.deploy-app
+all:
 
-tmp/%/.deploy-app: tmp/environments.json tmp/%/.deploy-bundle
+%: tmp/%/.deploy-app
+
+tmp/%/.deploy-app: tmp/environments.json tmp/%/.deploy-bundle tmp/%/.db-backup
+	@printf $(WIDTH) "  --> Deploying new $* environment"
 	@$(path) aws elasticbeanstalk update-environment \
 		--environment-id $(shell jq '.$*.id' $<) \
 		--version-label $(beanstalk-env) \
 		| tee > $@
+	@$(OK)
+
+
+
+
+tmp/%/.db-backup: tmp/%/database.sql.gz
+	@printf $(WIDTH) "  --> Backing up $* database to S3"
+	@$(path) aws s3 cp $< s3://$(s3-bucket)/backups/$*/database-$(shell date +%s).sql.gz &> /dev/null
+	@touch $@
+	@$(OK)
+
+%.gz: %
+	@gzip --keep --stdout $< > $@
 
 
 db-reset: tmp/environments.json
