@@ -24,7 +24,7 @@ endif
 
 all:
 
-%: tmp/%/.deploy-app
+production: tmp/production/.deploy-app
 
 tmp/%/.deploy-app: tmp/environments.json tmp/%/.deploy-bundle tmp/%/.db-backup
 	@printf $(WIDTH) "  --> Deploying new $* environment"
