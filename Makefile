@@ -22,10 +22,14 @@ endif
 .PHONY: clean
 .SECONDARY:
 
-all:
+help:
+	@echo "make production    Deploy updates to the producton environment"
+	@echo "make staging       Deploy updates to the staging environment"
+	@echo "make db-reset      Reset the database in the staging environment"
+	@echo
 
-production: tmp/production/.deploy-app
 staging: tmp/staging/.deploy-app
+production: tmp/production/.deploy-app
 
 tmp/%/.deploy-app: tmp/environments.json tmp/%/.deploy-bundle tmp/%/.db-backup
 	@printf $(WIDTH) "  --> Deploying new $* environment"
@@ -49,10 +53,12 @@ tmp/%/.db-backup: tmp/%/database.sql.gz
 
 
 db-reset: tmp/environments.json
-	$(path) aws elasticbeanstalk update-environment \
+	@printf $(WIDTH) "  --> Reseting staging environment database to clean state"
+	@$(path) aws elasticbeanstalk update-environment \
 		--environment-id $(shell jq '.staging.id' $<) \
 		--version-label database-reset \
 		| tee > $@
+	@$(OK)
 
 #######################################
 #
