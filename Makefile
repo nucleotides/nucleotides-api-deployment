@@ -11,10 +11,6 @@ s3-bucket = nucleotides-tools
 s3-key    = eb-environments/$(beanstalk-env)
 s3-url    = s3://$(s3-bucket)/$(s3-key)
 
-#ifndef DEPLOYMENT
-    #$(error DEPLOYMENT variable is undefined)
-#endif
-
 ifndef DOCKER_HOST
     $(error DOCKER_HOST not found. Docker appears not to be running)
 endif
@@ -27,9 +23,103 @@ help:
 	@echo "make staging       Deploy updates to the staging environment"
 	@echo "make db-reset      Reset the database in the staging environment"
 	@echo
+	@echo "make local	  Create local instance of application"
+	@echo
 
 staging: tmp/staging/.deploy-app
 production: tmp/production/.deploy-app
+local: .api_container
+
+
+#######################################
+#
+# Create local version of API
+#
+#######################################
+
+docker_host := $(shell echo ${DOCKER_HOST} | egrep -o "\d+.\d+.\d+.\d+")
+
+# Fake user created for testing database
+db_user := PGUSER=postgres
+db_pass := PGPASSWORD=pass
+db_name := PGDATABASE=postgres
+db_host := PGHOST=$(docker_host)
+db_port := PGPORT=5433
+
+
+# Makefile macro shortcut to run docker images with all credentials configured.
+docker_db := docker run \
+	--env="$(db_user)" \
+	--env="$(db_pass)" \
+	--env="$(db_name)" \
+	--env="$(db_host)" \
+	--env="$(db_port)" \
+	#--volume=$(abspath tmp/data/db_fixture):/data:ro \
+
+
+# Launch nucleotides API container, connnected to the RDS container
+.api_container: .rdm_loaded .api_image
+	@printf $(WIDTH) "  --> Launching nucleotid.es API container"
+	@$(docker_db) \
+		--detach=true \
+		--net=host \
+		--publish 80:80 \
+		nucleotides/api:master \
+		server > $@
+	@$(OK)
+
+# Populate local database with contents of master DB
+.rdm_loaded: .rdm_container tmp/local/database.sql
+	@printf $(WIDTH) "  --> Populating local DB with production data"
+	@$(docker_db) \
+		--volume="$(abspath $(dir $(lastword $^))):/data:ro" \
+		--entrypoint=psql \
+		kiasaki/alpine-postgres:9.5 \
+		-f /data/database.sql \
+		> /dev/null
+	@$(OK)
+
+
+tmp/local/database.sql: tmp/production/database.sql
+	@printf $(WIDTH) "  --> Create local version of production DB"
+	@mkdir -p $(dir $@)
+	@sed '/OWNER TO/s/nucleotides/postgres/p' $< \
+		| sed '/Owner:/s/nucleotides/postgres/p' \
+		> $@
+	@$(OK)
+
+
+# Launch POSTGRES container
+.rdm_container: .rdm_image
+	@printf $(WIDTH) "  --> Launching POSTGRES RDS container"
+	@docker run \
+		--env="$(db_user)" \
+		--env="$(db_pass)" \
+		--publish=5433:5432 \
+		--detach=true \
+		kiasaki/alpine-postgres:9.5 \
+		> $@
+	@sleep 3
+	@$(OK)
+
+.api_image:
+	@printf $(WIDTH) "  --> Fetching nucleotid.es API Docker image"
+	@docker pull nucleotides/api:master 2>&1 > /dev/null
+	@touch $@
+	@$(OK)
+
+.rdm_image:
+	@printf $(WIDTH) "  --> Fetching Postgres RDS Docker image"
+	@docker pull kiasaki/alpine-postgres:9.5 2>&1 > /dev/null
+	@touch $@
+	@$(OK)
+
+#######################################
+#
+# Deploying applications
+#
+#######################################
+
 
 tmp/%/.deploy-app: tmp/environments.json tmp/%/.deploy-bundle tmp/%/.db-backup
 	@printf $(WIDTH) "  --> Deploying new $* environment"
@@ -38,8 +128,6 @@ tmp/%/.deploy-app: tmp/environments.json tmp/%/.deploy-bundle tmp/%/.db-backup
 		--version-label $(beanstalk-env) \
 		| tee > $@
 	@$(OK)
-
-
 
 
 tmp/%/.db-backup: tmp/%/database.sql.gz
@@ -51,7 +139,7 @@ tmp/%/.db-backup: tmp/%/database.sql.gz
 %.gz: %
 	@gzip --keep --stdout $< > $@
 
-
+# Reset the production environment to a blank state
 db-reset: tmp/environments.json
 	@printf $(WIDTH) "  --> Reseting staging environment database to clean state"
 	@$(path) aws elasticbeanstalk update-environment \
@@ -165,8 +253,10 @@ tmp/data:
 	@$(OK)
 
 clean:
+	@docker kill $(shell cat .rdm_container 2> /dev/null) 2> /dev/null; true
+	@docker kill $(shell cat .api_container 2> /dev/null) 2> /dev/null; true
+	@rm -f .*_container .*_image
 	rm -rf tmp/*
-
 
 ################################################
 #

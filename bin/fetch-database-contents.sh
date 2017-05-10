@@ -41,5 +41,4 @@ pg_dump \
 	--dbname=ebdb \
 	--host=localhost \
 	--port=${LOCAL_PORT} \
-	--username=${PGUSER} \
-	--inserts
+	--username=${PGUSER}
