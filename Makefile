@@ -23,12 +23,13 @@ help:
 	@echo "make staging       Deploy updates to the staging environment"
 	@echo "make db-reset      Reset the database in the staging environment"
 	@echo
-	@echo "make local	  Create local instance of application"
+	@echo "make local/deploy  Deploy latest version of local application"
+	@echo "make local/up	  Create local instance of application"
 	@echo
 
 staging: tmp/staging/.deploy-app
 production: tmp/production/.deploy-app
-local: .api_container
+local/up: .api_container
 
 
 #######################################
@@ -54,7 +55,16 @@ docker_db := docker run \
 	--env="$(db_name)" \
 	--env="$(db_host)" \
 	--env="$(db_port)" \
-	#--volume=$(abspath tmp/data/db_fixture):/data:ro \
+
+local/migrate: tmp/data .api_image
+	@printf $(WIDTH) "  --> Migrating local version of database"
+	@$(docker_db) \
+		--net=host \
+		--publish 80:80 \
+		--volume=$(abspath tmp/data):/data:ro \
+		nucleotides/api:master \
+		migrate > log/local_migrate.txt 2> log/local_migrate.txt
+	@$(OK)
 
 
 # Launch nucleotides API container, connnected to the RDS container
