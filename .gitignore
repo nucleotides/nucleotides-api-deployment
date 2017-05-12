@@ -6,3 +6,5 @@ tmp
 log
 .upload
 .deploy
+.*_image
+.*_container
